@@ -7,8 +7,7 @@
 
   <meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+    content="width=device-width, initial-scale=1.0">
 
   <title>Kamera Absensi</title>
 
@@ -20,89 +19,92 @@
 
     body {
       margin: 0;
-      background: #0f172a;
+      padding: 15px;
+      background: #111;
       color: white;
       font-family: Arial, sans-serif;
+      text-align: center;
     }
 
     .container {
+      width: 100%;
       max-width: 500px;
       margin: auto;
-      padding: 15px;
     }
 
     h2 {
-      text-align: center;
-      margin: 10px 0 15px;
-    }
-
-    .status {
-      padding: 13px;
-      border-radius: 10px;
-      text-align: center;
-      margin-bottom: 12px;
-      background: #1e3a8a;
-      line-height: 1.5;
-    }
-
-    .success {
-      background: #166534;
-    }
-
-    .error {
-      background: #991b1b;
-    }
-
-    .camera-box {
-      background: black;
-      border-radius: 15px;
-      overflow: hidden;
+      margin: 8px 0 15px 0;
     }
 
     video {
       width: 100%;
-      display: block;
-      aspect-ratio: 3 / 4;
+      max-height: 65vh;
       object-fit: cover;
+      background: #000;
+      border-radius: 12px;
+      transform: scaleX(-1);
     }
 
     canvas {
       display: none;
     }
 
-    #preview {
+    .preview {
       width: 100%;
-      display: none;
-      aspect-ratio: 3 / 4;
-      object-fit: cover;
+      max-height: 65vh;
+      object-fit: contain;
+      background: #000;
+      border-radius: 12px;
     }
 
     button {
       width: 100%;
-      border: 0;
-      border-radius: 12px;
-      padding: 15px;
-      margin-top: 10px;
-      font-size: 16px;
+      min-height: 52px;
+      margin-top: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
       font-weight: bold;
-      color: white;
       cursor: pointer;
     }
 
-    .blue {
-      background: #2563eb;
+    .ambil {
+      background: #198754;
+      color: white;
     }
 
-    .green {
-      background: #16a34a;
+    .gunakan {
+      background: #0d6efd;
+      color: white;
     }
 
-    .gray {
-      background: #475569;
+    .ulang {
+      background: #ffc107;
+      color: #222;
     }
 
-    .red {
-      background: #dc2626;
+    .batal {
+      background: #dc3545;
+      color: white;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    #status {
+      margin-top: 15px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #222;
+      font-weight: bold;
+      line-height: 1.5;
+    }
+
+    .info {
+      font-size: 14px;
+      opacity: .85;
+      margin-bottom: 10px;
     }
 
   </style>
@@ -116,81 +118,96 @@
 
   <h2>📷 KAMERA ABSENSI</h2>
 
-
-  <div
-    id="status"
-    class="status"
-  >
-    Menyiapkan kamera...
+  <div class="info">
+    Gunakan kamera untuk mengambil foto absensi.
   </div>
 
 
-  <div class="camera-box">
+  <!-- VIDEO KAMERA -->
 
-    <video
-      id="video"
-      autoplay
-      playsinline
-      muted
-    ></video>
-
-
-    <img
-      id="preview"
-      alt="Preview foto"
-    >
-
-  </div>
+  <video
+    id="video"
+    autoplay
+    playsinline>
+  </video>
 
 
-  <canvas id="canvas"></canvas>
+  <!-- HASIL FOTO -->
 
+  <img
+    id="preview"
+    class="preview hidden"
+    alt="Preview foto">
+
+
+  <!-- CANVAS -->
+
+  <canvas
+    id="canvas">
+  </canvas>
+
+
+  <!-- TOMBOL AMBIL -->
 
   <button
     id="btnAmbil"
-    class="blue"
-    onclick="ambilFoto()"
-    style="display:none;"
-  >
+    class="ambil"
+    onclick="ambilFoto()">
+
     📸 AMBIL FOTO
+
   </button>
 
+
+  <!-- TOMBOL GUNAKAN -->
 
   <button
     id="btnGunakan"
-    class="green"
-    onclick="gunakanFoto()"
-    style="display:none;"
-  >
+    class="gunakan hidden"
+    onclick="gunakanFoto()">
+
     ✅ GUNAKAN FOTO
+
   </button>
 
 
+  <!-- TOMBOL ULANG -->
+
   <button
-    id="btnUlangi"
-    class="gray"
-    onclick="ulangFoto()"
-    style="display:none;"
-  >
+    id="btnUlang"
+    class="ulang hidden"
+    onclick="ulangFoto()">
+
     🔄 ULANGI FOTO
+
   </button>
 
+
+  <!-- TOMBOL BATAL -->
 
   <button
-    class="red"
-    onclick="batal()"
-  >
+    id="btnBatal"
+    class="batal"
+    onclick="batal()">
+
     ❌ BATAL
+
   </button>
+
+
+  <div id="status">
+    Menyiapkan kamera...
+  </div>
 
 </div>
 
 
 <script>
 
-/*************************************************
- * PARAMETER DARI APPS SCRIPT
- *************************************************/
+
+/* ============================================================
+   PARAMETER DARI APPS SCRIPT
+   ============================================================ */
 
 const params =
   new URLSearchParams(
@@ -207,80 +224,106 @@ const action =
 
 
 const returnOrigin =
-  params.get('returnOrigin') || '*';
+  params.get('returnOrigin') || '';
 
 
-/*************************************************
- * ELEMENT
- *************************************************/
+/* ============================================================
+   VARIABEL
+   ============================================================ */
+
+let stream =
+  null;
+
+let fotoBase64 =
+  '';
+
+
+/* ============================================================
+   ELEMENT
+   ============================================================ */
 
 const video =
-  document.getElementById('video');
-
-
-const canvas =
-  document.getElementById('canvas');
-
+  document.getElementById(
+    'video'
+  );
 
 const preview =
-  document.getElementById('preview');
+  document.getElementById(
+    'preview'
+  );
 
-
-const status =
-  document.getElementById('status');
-
+const canvas =
+  document.getElementById(
+    'canvas'
+  );
 
 const btnAmbil =
-  document.getElementById('btnAmbil');
-
+  document.getElementById(
+    'btnAmbil'
+  );
 
 const btnGunakan =
-  document.getElementById('btnGunakan');
+  document.getElementById(
+    'btnGunakan'
+  );
+
+const btnUlang =
+  document.getElementById(
+    'btnUlang'
+  );
+
+const btnBatal =
+  document.getElementById(
+    'btnBatal'
+  );
+
+const status =
+  document.getElementById(
+    'status'
+  );
 
 
-const btnUlangi =
-  document.getElementById('btnUlangi');
+/* ============================================================
+   STATUS
+   ============================================================ */
+
+function setStatus(
+  pesan
+) {
+
+  status.textContent =
+    pesan;
+
+}
 
 
-let stream = null;
+/* ============================================================
+   VALIDASI
+   ============================================================ */
 
-let fotoBase64 = '';
+if (
+  !token ||
+  !action ||
+  !returnOrigin
+) {
 
+  setStatus(
+    '❌ Halaman kamera dibuka tanpa data absensi yang lengkap.'
+  );
 
-/*************************************************
- * MULAI
- *************************************************/
+  btnAmbil.disabled =
+    true;
 
-window.addEventListener(
-  'load',
-  function() {
-
-    if (!token) {
-
-      setStatus(
-        'Sesi kamera tidak valid.',
-        'error'
-      );
-
-      return;
-    }
-
-    mulaiKamera();
-
-  }
-);
+}
 
 
-/*************************************************
- * KAMERA
- *************************************************/
+/* ============================================================
+   BUKA KAMERA
+   ============================================================ */
 
-async function mulaiKamera() {
+async function bukaKamera() {
 
   try {
-
-    stopKamera();
-
 
     if (
       !navigator.mediaDevices ||
@@ -295,8 +338,7 @@ async function mulaiKamera() {
 
 
     setStatus(
-      'Meminta izin kamera...',
-      ''
+      '📷 Meminta izin kamera...'
     );
 
 
@@ -304,13 +346,19 @@ async function mulaiKamera() {
       await navigator.mediaDevices.getUserMedia({
 
         video: {
-          facingMode: 'user',
+
+          facingMode: {
+            ideal: 'user'
+          },
+
           width: {
             ideal: 720
           },
+
           height: {
             ideal: 960
           }
+
         },
 
         audio: false
@@ -325,130 +373,71 @@ async function mulaiKamera() {
     await video.play();
 
 
-    video.style.display =
-      'block';
+    setStatus(
+      '📷 Kamera siap. Arahkan kamera ke wajah lalu tekan AMBIL FOTO.'
+    );
 
 
-    preview.style.display =
-      'none';
+  } catch (error) {
 
-
-    btnAmbil.style.display =
-      'block';
-
-
-    btnGunakan.style.display =
-      'none';
-
-
-    btnUlangi.style.display =
-      'none';
+    console.error(error);
 
 
     setStatus(
-      'Kamera aktif. Posisikan kamera dengan benar lalu tekan AMBIL FOTO.',
-      'success'
+      '❌ Kamera tidak dapat dibuka. Pastikan izin kamera browser sudah diizinkan dan gunakan HTTPS.'
     );
 
-  } catch (err) {
 
-    console.error(err);
-
-
-    let pesan =
-      'Kamera tidak dapat dibuka. ';
-
-
-    if (
-      err.name ===
-      'NotAllowedError'
-    ) {
-
-      pesan +=
-        'Izinkan akses kamera untuk situs GitHub ini.';
-
-    } else if (
-      err.name ===
-      'NotFoundError'
-    ) {
-
-      pesan +=
-        'Kamera tidak ditemukan.';
-
-    } else if (
-      err.name ===
-      'NotReadableError'
-    ) {
-
-      pesan +=
-        'Kamera sedang digunakan aplikasi lain.';
-
-    } else {
-
-      pesan +=
-        err.message ||
-        'Silakan coba lagi.';
-
-    }
-
-
-    setStatus(
-      pesan,
-      'error'
-    );
+    btnAmbil.disabled =
+      true;
 
   }
 
 }
 
 
-/*************************************************
- * AMBIL FOTO
- *************************************************/
+/* ============================================================
+   AMBIL FOTO
+   ============================================================ */
 
 function ambilFoto() {
 
   if (
-    !video.videoWidth ||
-    !video.videoHeight
+    !stream ||
+    !video.videoWidth
   ) {
 
     setStatus(
-      'Kamera belum siap.',
-      'error'
+      '❌ Kamera belum siap.'
     );
 
     return;
   }
 
 
-  let width =
+  /*
+   * Maksimal lebar foto 720px
+   * agar ukuran data tidak terlalu besar.
+   */
+
+  const maxWidth =
+    720;
+
+  const ratio =
+    video.videoHeight /
     video.videoWidth;
 
 
+  let width =
+    Math.min(
+      video.videoWidth,
+      maxWidth
+    );
+
   let height =
-    video.videoHeight;
-
-
-  const MAX_WIDTH = 720;
-
-
-  if (
-    width > MAX_WIDTH
-  ) {
-
-    const ratio =
-      MAX_WIDTH / width;
-
-    width =
-      MAX_WIDTH;
-
-    height =
-      Math.round(
-        height * ratio
-      );
-
-  }
+    Math.round(
+      width * ratio
+    );
 
 
   canvas.width =
@@ -459,7 +448,28 @@ function ambilFoto() {
 
 
   const ctx =
-    canvas.getContext('2d');
+    canvas.getContext(
+      '2d'
+    );
+
+
+  /*
+   * Kamera depan ditampilkan mirror.
+   * Foto juga dibuat mirror agar
+   * sesuai dengan tampilan pengguna.
+   */
+
+  ctx.save();
+
+  ctx.translate(
+    width,
+    0
+  );
+
+  ctx.scale(
+    -1,
+    1
+  );
 
 
   ctx.drawImage(
@@ -470,6 +480,13 @@ function ambilFoto() {
     height
   );
 
+
+  ctx.restore();
+
+
+  /*
+   * JPEG kualitas 70%
+   */
 
   fotoBase64 =
     canvas.toDataURL(
@@ -482,80 +499,88 @@ function ambilFoto() {
     fotoBase64;
 
 
-  video.style.display =
-    'none';
+  video.classList.add(
+    'hidden'
+  );
+
+  preview.classList.remove(
+    'hidden'
+  );
 
 
-  preview.style.display =
-    'block';
+  btnAmbil.classList.add(
+    'hidden'
+  );
 
+  btnGunakan.classList.remove(
+    'hidden'
+  );
 
-  btnAmbil.style.display =
-    'none';
-
-
-  btnGunakan.style.display =
-    'block';
-
-
-  btnUlangi.style.display =
-    'block';
-
-
-  stopKamera();
+  btnUlang.classList.remove(
+    'hidden'
+  );
 
 
   setStatus(
-    'Foto berhasil diambil. Jika sudah sesuai, tekan GUNAKAN FOTO.',
-    'success'
+    'Foto berhasil diambil. Pastikan foto sudah benar.'
   );
 
 }
 
 
-/*************************************************
- * ULANGI
- *************************************************/
+/* ============================================================
+   ULANGI FOTO
+   ============================================================ */
 
 function ulangFoto() {
 
-  fotoBase64 = '';
-
-  preview.src = '';
-
-
-  preview.style.display =
-    'none';
+  fotoBase64 =
+    '';
 
 
-  video.style.display =
-    'block';
+  preview.src =
+    '';
 
 
-  btnGunakan.style.display =
-    'none';
+  preview.classList.add(
+    'hidden'
+  );
+
+  video.classList.remove(
+    'hidden'
+  );
 
 
-  btnUlangi.style.display =
-    'none';
+  btnAmbil.classList.remove(
+    'hidden'
+  );
+
+  btnGunakan.classList.add(
+    'hidden'
+  );
+
+  btnUlang.classList.add(
+    'hidden'
+  );
 
 
-  mulaiKamera();
+  setStatus(
+    '📷 Silakan ambil foto kembali.'
+  );
 
 }
 
 
-/*************************************************
- * GUNAKAN FOTO
- *************************************************/
+/* ============================================================
+   GUNAKAN FOTO
+   ============================================================ */
 
 function gunakanFoto() {
 
   if (!fotoBase64) {
 
     setStatus(
-      'Foto belum tersedia.',
-      'error'
+      '❌ Belum ada foto.'
     );
 
     return;
@@ -568,135 +593,139 @@ function gunakanFoto() {
   ) {
 
     setStatus(
-      'Halaman absensi utama tidak ditemukan.',
-      'error'
+      '❌ Halaman absensi utama sudah tertutup. Silakan buka kamera dari halaman absensi.'
     );
 
     return;
   }
 
 
-  btnGunakan.disabled =
-    true;
-
-  btnUlangi.disabled =
-    true;
-
-
   setStatus(
-    'Mengirim foto ke sistem absensi...',
-    ''
+    '⏳ Mengirim foto ke halaman absensi...'
   );
 
 
-  window.opener.postMessage(
+  try {
 
-    {
-      type:
-        'ABSENSI_CAMERA_RESULT',
+    window.opener.postMessage(
 
-      token:
-        token,
+      {
 
-      action:
-        action,
+        type:
+          'ABSENSI_CAMERA_RESULT',
 
-      fotoBase64:
-        fotoBase64
+        token:
+          token,
 
-    },
+        action:
+          action,
 
-    returnOrigin
+        fotoBase64:
+          fotoBase64
 
-  );
+      },
+
+      returnOrigin
+
+    );
 
 
-  setTimeout(
-    function() {
+    /*
+     * Beri waktu sedikit agar pesan
+     * diterima oleh Apps Script.
+     */
 
-      window.close();
+    setTimeout(
+      function() {
 
-    },
-    700
-  );
+        hentikanKamera();
+
+        window.close();
+
+      },
+      500
+    );
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    setStatus(
+      '❌ Gagal mengirim foto ke halaman absensi.'
+    );
+
+  }
 
 }
 
 
-/*************************************************
- * BATAL
- *************************************************/
+/* ============================================================
+   BATAL
+   ============================================================ */
 
 function batal() {
 
-  stopKamera();
+  hentikanKamera();
 
-  fotoBase64 = '';
-
-
-  if (
-    window.opener &&
-    !window.opener.closed
-  ) {
-
-    window.close();
-
-  } else {
-
-    history.back();
-
-  }
+  window.close();
 
 }
 
 
-/*************************************************
- * STOP KAMERA
- *************************************************/
+/* ============================================================
+   MATIKAN KAMERA
+   ============================================================ */
 
-function stopKamera() {
+function hentikanKamera() {
 
-  if (stream) {
-
-    stream
-      .getTracks()
-      .forEach(
-        function(track) {
-
-          track.stop();
-
-        }
-      );
-
-    stream = null;
-
+  if (!stream) {
+    return;
   }
 
 
-  video.srcObject =
+  stream
+    .getTracks()
+    .forEach(
+      function(track) {
+
+        track.stop();
+
+      }
+    );
+
+
+  stream =
     null;
 
 }
 
 
-/*************************************************
- * STATUS
- *************************************************/
+/* ============================================================
+   JIKA HALAMAN DITUTUP
+   ============================================================ */
 
-function setStatus(
-  message,
-  type
+window.addEventListener(
+  'beforeunload',
+  function() {
+
+    hentikanKamera();
+
+  }
+);
+
+
+/* ============================================================
+   START CAMERA
+   ============================================================ */
+
+if (
+  token &&
+  action &&
+  returnOrigin
 ) {
 
-  status.textContent =
-    message;
-
-
-  status.className =
-    'status ' +
-    (
-      type || ''
-    );
+  bukaKamera();
 
 }
 
