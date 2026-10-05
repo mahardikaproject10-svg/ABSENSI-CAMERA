@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Kamera Absensi</title>
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 15px;
+    }
+
+    h2 {
+      text-align: center;
+      margin: 10px 0 15px;
+    }
+
+    .status {
+      padding: 13px;
+      border-radius: 10px;
+      text-align: center;
+      margin-bottom: 12px;
+      background: #1e3a8a;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: #166534;
+    }
+
+    .error {
+      background: #991b1b;
+    }
+
+    .camera-box {
+      background: black;
+      border-radius: 15px;
+      overflow: hidden;
+    }
+
+    video {
+      width: 100%;
+      display: block;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    #preview {
+      width: 100%;
+      display: none;
+      aspect-ratio: 3 / 4;
+      object-fit: cover;
+    }
+
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 15px;
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      cursor: pointer;
+    }
+
+    .blue {
+      background: #2563eb;
+    }
+
+    .green {
+      background: #16a34a;
+    }
+
+    .gray {
+      background: #475569;
+    }
+
+    .red {
+      background: #dc2626;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+  <h2>📷 KAMERA ABSENSI</h2>
+
+
+  <div
+    id="status"
+    class="status"
+  >
+    Menyiapkan kamera...
+  </div>
+
+
+  <div class="camera-box">
+
+    <video
+      id="video"
+      autoplay
+      playsinline
+      muted
+    ></video>
+
+
+    <img
+      id="preview"
+      alt="Preview foto"
+    >
+
+  </div>
+
+
+  <canvas id="canvas"></canvas>
+
+
+  <button
+    id="btnAmbil"
+    class="blue"
+    onclick="ambilFoto()"
+    style="display:none;"
+  >
+    📸 AMBIL FOTO
+  </button>
+
+
+  <button
+    id="btnGunakan"
+    class="green"
+    onclick="gunakanFoto()"
+    style="display:none;"
+  >
+    ✅ GUNAKAN FOTO
+  </button>
+
+
+  <button
+    id="btnUlangi"
+    class="gray"
+    onclick="ulangFoto()"
+    style="display:none;"
+  >
+    🔄 ULANGI FOTO
+  </button>
+
+
+  <button
+    class="red"
+    onclick="batal()"
+  >
+    ❌ BATAL
+  </button>
+
+</div>
+
+
+<script>
+
+/*************************************************
+ * PARAMETER DARI APPS SCRIPT
+ *************************************************/
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+
+const token =
+  params.get('token') || '';
+
+
+const action =
+  params.get('action') || '';
+
+
+const returnOrigin =
+  params.get('returnOrigin') || '*';
+
+
+/*************************************************
+ * ELEMENT
+ *************************************************/
+
+const video =
+  document.getElementById('video');
+
+
+const canvas =
+  document.getElementById('canvas');
+
+
+const preview =
+  document.getElementById('preview');
+
+
+const status =
+  document.getElementById('status');
+
+
+const btnAmbil =
+  document.getElementById('btnAmbil');
+
+
+const btnGunakan =
+  document.getElementById('btnGunakan');
+
+
+const btnUlangi =
+  document.getElementById('btnUlangi');
+
+
+let stream = null;
+
+let fotoBase64 = '';
+
+
+/*************************************************
+ * MULAI
+ *************************************************/
+
+window.addEventListener(
+  'load',
+  function() {
+
+    if (!token) {
+
+      setStatus(
+        'Sesi kamera tidak valid.',
+        'error'
+      );
+
+      return;
+    }
+
+    mulaiKamera();
+
+  }
+);
+
+
+/*************************************************
+ * KAMERA
+ *************************************************/
+
+async function mulaiKamera() {
+
+  try {
+
+    stopKamera();
+
+
+    if (
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ) {
+
+      throw new Error(
+        'Browser tidak mendukung kamera.'
+      );
+
+    }
+
+
+    setStatus(
+      'Meminta izin kamera...',
+      ''
+    );
+
+
+    stream =
+      await navigator.mediaDevices.getUserMedia({
+
+        video: {
+          facingMode: 'user',
+          width: {
+            ideal: 720
+          },
+          height: {
+            ideal: 960
+          }
+        },
+
+        audio: false
+
+      });
+
+
+    video.srcObject =
+      stream;
+
+
+    await video.play();
+
+
+    video.style.display =
+      'block';
+
+
+    preview.style.display =
+      'none';
+
+
+    btnAmbil.style.display =
+      'block';
+
+
+    btnGunakan.style.display =
+      'none';
+
+
+    btnUlangi.style.display =
+      'none';
+
+
+    setStatus(
+      'Kamera aktif. Posisikan kamera dengan benar lalu tekan AMBIL FOTO.',
+      'success'
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+
+    let pesan =
+      'Kamera tidak dapat dibuka. ';
+
+
+    if (
+      err.name ===
+      'NotAllowedError'
+    ) {
+
+      pesan +=
+        'Izinkan akses kamera untuk situs GitHub ini.';
+
+    } else if (
+      err.name ===
+      'NotFoundError'
+    ) {
+
+      pesan +=
+        'Kamera tidak ditemukan.';
+
+    } else if (
+      err.name ===
+      'NotReadableError'
+    ) {
+
+      pesan +=
+        'Kamera sedang digunakan aplikasi lain.';
+
+    } else {
+
+      pesan +=
+        err.message ||
+        'Silakan coba lagi.';
+
+    }
+
+
+    setStatus(
+      pesan,
+      'error'
+    );
+
+  }
+
+}
+
+
+/*************************************************
+ * AMBIL FOTO
+ *************************************************/
+
+function ambilFoto() {
+
+  if (
+    !video.videoWidth ||
+    !video.videoHeight
+  ) {
+
+    setStatus(
+      'Kamera belum siap.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  let width =
+    video.videoWidth;
+
+
+  let height =
+    video.videoHeight;
+
+
+  const MAX_WIDTH = 720;
+
+
+  if (
+    width > MAX_WIDTH
+  ) {
+
+    const ratio =
+      MAX_WIDTH / width;
+
+    width =
+      MAX_WIDTH;
+
+    height =
+      Math.round(
+        height * ratio
+      );
+
+  }
+
+
+  canvas.width =
+    width;
+
+  canvas.height =
+    height;
+
+
+  const ctx =
+    canvas.getContext('2d');
+
+
+  ctx.drawImage(
+    video,
+    0,
+    0,
+    width,
+    height
+  );
+
+
+  fotoBase64 =
+    canvas.toDataURL(
+      'image/jpeg',
+      0.70
+    );
+
+
+  preview.src =
+    fotoBase64;
+
+
+  video.style.display =
+    'none';
+
+
+  preview.style.display =
+    'block';
+
+
+  btnAmbil.style.display =
+    'none';
+
+
+  btnGunakan.style.display =
+    'block';
+
+
+  btnUlangi.style.display =
+    'block';
+
+
+  stopKamera();
+
+
+  setStatus(
+    'Foto berhasil diambil. Jika sudah sesuai, tekan GUNAKAN FOTO.',
+    'success'
+  );
+
+}
+
+
+/*************************************************
+ * ULANGI
+ *************************************************/
+
+function ulangFoto() {
+
+  fotoBase64 = '';
+
+  preview.src = '';
+
+
+  preview.style.display =
+    'none';
+
+
+  video.style.display =
+    'block';
+
+
+  btnGunakan.style.display =
+    'none';
+
+
+  btnUlangi.style.display =
+    'none';
+
+
+  mulaiKamera();
+
+}
+
+
+/*************************************************
+ * GUNAKAN FOTO
+ *************************************************/
+
+function gunakanFoto() {
+
+  if (!fotoBase64) {
+
+    setStatus(
+      'Foto belum tersedia.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if (
+    !window.opener ||
+    window.opener.closed
+  ) {
+
+    setStatus(
+      'Halaman absensi utama tidak ditemukan.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  btnGunakan.disabled =
+    true;
+
+  btnUlangi.disabled =
+    true;
+
+
+  setStatus(
+    'Mengirim foto ke sistem absensi...',
+    ''
+  );
+
+
+  window.opener.postMessage(
+
+    {
+      type:
+        'ABSENSI_CAMERA_RESULT',
+
+      token:
+        token,
+
+      action:
+        action,
+
+      fotoBase64:
+        fotoBase64
+
+    },
+
+    returnOrigin
+
+  );
+
+
+  setTimeout(
+    function() {
+
+      window.close();
+
+    },
+    700
+  );
+
+}
+
+
+/*************************************************
+ * BATAL
+ *************************************************/
+
+function batal() {
+
+  stopKamera();
+
+  fotoBase64 = '';
+
+
+  if (
+    window.opener &&
+    !window.opener.closed
+  ) {
+
+    window.close();
+
+  } else {
+
+    history.back();
+
+  }
+
+}
+
+
+/*************************************************
+ * STOP KAMERA
+ *************************************************/
+
+function stopKamera() {
+
+  if (stream) {
+
+    stream
+      .getTracks()
+      .forEach(
+        function(track) {
+
+          track.stop();
+
+        }
+      );
+
+    stream = null;
+
+  }
+
+
+  video.srcObject =
+    null;
+
+}
+
+
+/*************************************************
+ * STATUS
+ *************************************************/
+
+function setStatus(
+  message,
+  type
+) {
+
+  status.textContent =
+    message;
+
+
+  status.className =
+    'status ' +
+    (
+      type || ''
+    );
+
+}
+
+</script>
+
+</body>
+
+</html>
